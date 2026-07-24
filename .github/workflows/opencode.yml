@@ -16,20 +16,21 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       id-token: write
-      contents: read
-      pull-requests: read
-      issues: read
+      contents: write       # 修改为 write：允许推送代码
+      pull-requests: write  # 修改为 write：允许创建 PR
+      issues: write         # 修改为 write：允许在 issue 中回复状态
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4  # 修改为 v4 (当前最新版本)
         with:
           persist-credentials: false
 
       - name: Run opencode
         uses: anomalyco/opencode/github@latest
         env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # 新增：必须提供 GitHub Token
           GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
           GOOGLE_GENERATIVE_AI_API_KEY: ${{ secrets.GOOGLE_GENERATIVE_AI_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         with:
-          model: google/gemini-3.5-flash
+         model: google/gemini-3.5-flash
