@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>你画我猜 🎨</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Nunito', 'Segoe UI', 'PingFang SC', sans-serif;
+    background: #fceabb;
+    background: linear-gradient(135deg, #f8b500 0%, #fceabb 100%);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+    color: #4a4a4a;
+  }
+  .game-container {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border-radius: 30px;
+    padding: 30px;
+    max-width: 900px;
+    width: 100%;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.1), inset 0 0 0 2px rgba(255,255,255,0.5);
+    border: 4px solid #fff;
+  }
+  h1 {
+    text-align: center;
+    font-size: 36px;
+    font-weight: 900;
+    margin-bottom: 24px;
+    color: #ff6b6b;
+    text-shadow: 2px 2px 0px #ffe6e6;
+  }
+  h1 span { display: inline-block; animation: bounce 2s infinite ease-in-out; }
+  
+  @keyframes bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+  }
+
+  /* Setup Screen */
+  .screen { display: none; animation: fadeIn 0.4s ease-out; }
+  .screen.active { display: block; }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .setup-screen { text-align: center; }
+  .setup-screen h2 { margin-bottom: 24px; color: #4ecdc4; font-size: 26px; font-weight: 800; }
+  
+  .player-inputs { display: flex; gap: 24px; justify-content: center; flex-wrap: wrap; margin-bottom: 30px; }
+  .player-input-group { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .player-input-group label { font-weight: 800; font-size: 16px; color: #555; }
+  .player-input-group input {
+    padding: 12px 20px;
+    border: 3px solid #eee;
+    border-radius: 16px;
+    font-size: 18px;
+    font-weight: 600;
+    text-align: center;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    width: 180px;
+    background: #fff;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+    font-family: 'Nunito', sans-serif;
+  }
+  .player-input-group input:focus { outline: none; border-color: #ff6b6b; transform: translateY(-2px); box-shadow: 0 8px 15px rgba(255,107,107,0.2); }
+
+  .btn {
+    padding: 14px 36px; border: none; border-radius: 100px;
+    font-size: 18px; font-weight: 800; font-family: 'Nunito', sans-serif;
+    cursor: pointer; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+    box-shadow: 0 4px 0 rgba(0,0,0,0.1);
+  }
+  .btn:active { transform: translateY(4px) !important; box-shadow: 0 0 0 rgba(0,0,0,0.1) !important; }
+
+  .btn-primary { background: #ff6b6b; color: #fff; box-shadow: 0 6px 0 #d93838; }
+  .btn-primary:hover { background: #ff5252; transform: translateY(-2px); }
+
+  .btn-secondary { background: #f1f2f6; color: #576574; box-shadow: 0 6px 0 #ced6e0; }
+  .btn-secondary:hover { background: #eccc68; color: #fff; box-shadow: 0 6px 0 #ffa502; transform: translateY(-2px); }
+
+  .btn-success { background: #1dd1a1; color: #fff; box-shadow: 0 6px 0 #10ac84; }
+  .btn-success:hover { background: #10ac84; transform: translateY(-2px); }
+
+  .btn-warning { background: #feca57; color: #fff; box-shadow: 0 6px 0 #ff9f43; }
+  .btn-warning:hover { background: #ff9f43; transform: translateY(-2px); }
+
+  .btn-danger { background: #ff6b6b; color: #fff; box-shadow: 0 6px 0 #ee5253; }
+  .btn-danger:hover { background: #ee5253; transform: translateY(-2px); }
+
+  .btn-sm { padding: 10px 20px; font-size: 15px; border-radius: 50px; box-shadow: 0 4px 0 rgba(0,0,0,0.1); }
+
+  /* Game Screen */
+  .game-header {
+    display: flex; justify-content: space-between; align-items: center;
+    flex-wrap: wrap; gap: 12px; margin-bottom: 20px;
+  }
+  .scores { display: flex; gap: 20px; align-items: center; }
+  .score-item {
+    background: #fff; padding: 8px 18px; border-radius: 20px;
+    font-size: 16px; font-weight: 800; border: 2px solid #eee;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+  }
+  .score-item .name { color: #576574; }
+  .score-item .pts { color: #ff6b6b; font-size: 18px; }
+  
+  .round-info { font-size: 16px; font-weight: 800; color: #1dd1a1; background: #e0f6ec; padding: 6px 16px; border-radius: 20px; }
+  
+  .timer {
+    background: #222f3e; color: #fff; padding: 8px 20px; border-radius: 20px;
+    font-size: 20px; font-weight: 900; font-variant-numeric: tabular-nums;
+    box-shadow: 0 4px 0 #111820;
+  }
+  .timer.warning { background: #ff6b6b; box-shadow: 0 4px 0 #d93838; animation: pulse-danger 0.5s infinite alternate; }
+  @keyframes pulse-danger { from { transform: scale(1); } to { transform: scale(1.05); } }
+
+  .word-display {
+    text-align: center; margin: 10px 0 20px; padding: 16px;
+    background: #fff; border-radius: 20px; border: 3px dashed #4ecdc4;
+    position: relative; overflow: hidden;
+  }
+  .word-display::after {
+    content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
+    background: repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(78, 205, 196, 0.05) 10px, rgba(78, 205, 196, 0.05) 20px);
+    z-index: 0;
+  }
+  .word-display > * { position: relative; z-index: 1; }
+  
+  .word-hint { font-size: 16px; font-weight: 700; color: #576574; margin-bottom: 8px; }
+  .word-text { font-size: 32px; font-weight: 900; color: #ff6b6b; letter-spacing: 2px; display: none; }
+  .word-text.revealed { display: block; animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+  @keyframes popIn { from { transform: scale(0.5); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  
+  .word-category { font-size: 14px; font-weight: 700; color: #a4b0be; margin-top: 8px; }
+  .reveal-btn { font-size: 14px; padding: 6px 18px; box-shadow: 0 4px 0 rgba(0,0,0,0.1); }
+
+  .canvas-area {
+    display: flex; gap: 16px; margin-bottom: 16px; align-items: stretch;
+  }
+  .canvas-wrapper {
+    flex: 1; border: 4px solid #fff; border-radius: 24px; overflow: hidden;
+    background: #fff; position: relative; box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+  }
+  .canvas-wrapper::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 10px;
+    background: rgba(0,0,0,0.03); border-radius: 24px 24px 0 0; pointer-events: none;
+  }
+  .canvas-wrapper canvas {
+    display: block; width: 100%; height: 100%; cursor: crosshair; touch-action: none; background: #fff;
+  }
+
+  .tools-panel {
+    display: flex; flex-direction: column; gap: 12px; width: 70px;
+    background: #fff; padding: 12px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+    border: 3px solid #f1f2f6; align-items: center;
+  }
+  .tool-group { display: flex; flex-direction: column; gap: 8px; width: 100%; align-items: center; }
+  .tool-group label { font-size: 13px; font-weight: 800; color: #a4b0be; text-align: center; }
+  .color-palette {
+    display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px;
+  }
+  .color-btn {
+    width: 22px; height: 22px; border-radius: 50%; border: 2px solid transparent;
+    cursor: pointer; transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1); padding: 0;
+  }
+  .color-btn:hover { transform: scale(1.2); }
+  .color-btn.active { border: 2px solid #222f3e; transform: scale(1.3); box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+  
+  .size-selector { display: flex; flex-direction: column; gap: 6px; align-items: center; }
+  .size-btn {
+    width: 32px; height: 32px; border-radius: 50%; border: 2px solid #eee; cursor: pointer;
+    background: #fff; transition: all 0.2s; padding: 0;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .size-btn:hover { border-color: #ff6b6b; background: #fff3f3; }
+  .size-btn.active { border-color: #ff6b6b; background: #ffe6e6; }
+  .size-btn .dot { border-radius: 50%; background: #222f3e; }
+  .size-btn .dot.s1 { width: 4px; height: 4px; }
+  .size-btn .dot.s2 { width: 8px; height: 8px; }
+  .size-btn .dot.s3 { width: 14px; height: 14px; }
+  .size-btn .dot.s4 { width: 20px; height: 20px; }
+  
+  .tool-actions { display: flex; flex-direction: column; gap: 8px; width: 100%; margin-top: auto; }
+  .tool-actions .btn { width: 100%; justify-content: center; font-size: 12px; padding: 8px 0; border-radius: 12px; box-shadow: 0 3px 0 rgba(0,0,0,0.1); }
+
+  .guess-area {
+    display: flex; gap: 12px; align-items: center; margin: 16px 0;
+  }
+  .guess-area input {
+    flex: 1; padding: 14px 24px; border: 3px solid #eee; border-radius: 100px;
+    font-size: 18px; font-weight: 700; transition: all 0.3s;
+    font-family: 'Nunito', sans-serif; background: #fff; box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+  }
+  .guess-area input:focus { outline: none; border-color: #1dd1a1; transform: translateY(-2px); box-shadow: 0 8px 15px rgba(29, 209, 161, 0.2); }
+  .guess-area .btn { padding: 14px 32px; border-radius: 100px; }
+
+  .messages {
+    min-height: 50px; max-height: 120px; overflow-y: auto; margin-top: 12px; padding: 12px 16px;
+    background: #f1f2f6; border-radius: 16px; font-size: 15px; font-weight: 600;
+    border: 2px solid #e4e5e9;
+  }
+  .messages .msg { padding: 4px 0; animation: slideIn 0.3s ease-out; }
+  @keyframes slideIn { from { transform: translateX(-10px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+  .messages .msg-success { color: #10ac84; }
+  .messages .msg-error { color: #ee5253; }
+  .messages .msg-info { color: #576574; }
+  .messages .msg-correct { color: #10ac84; font-size: 20px; font-weight: 800; animation: bounceIn 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275); text-align: center; padding: 8px 0; }
+  
+  .game-actions { display: flex; gap: 12px; justify-content: center; margin-top: 16px; flex-wrap: wrap; }
+
+  /* Result Screen */
+  .result-screen { text-align: center; }
+  .result-screen h2 { font-size: 32px; font-weight: 900; margin-bottom: 24px; color: #222f3e; }
+  .trophy { font-size: 80px; margin-bottom: 16px; animation: bounce 2s infinite ease-in-out; }
+  .final-scores { margin: 24px auto; max-width: 350px; display: flex; flex-direction: column; gap: 12px; }
+  .final-score-item {
+    display: flex; justify-content: space-between; align-items: center; padding: 16px 24px;
+    background: #f1f2f6; border-radius: 20px; font-size: 20px; font-weight: 800;
+    border: 3px solid transparent; transition: all 0.3s;
+  }
+  .final-score-item.winner { background: #fff3f3; border-color: #ff6b6b; transform: scale(1.05); box-shadow: 0 10px 20px rgba(255, 107, 107, 0.2); }
+  .final-score-item .pts { color: #ff6b6b; font-size: 24px; }
+
+  /* Instructions Modal */
+  .modal-overlay {
+    display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(34, 47, 62, 0.8); backdrop-filter: blur(5px);
+    z-index: 1000; justify-content: center; align-items: center;
+    padding: 20px; opacity: 0; transition: opacity 0.3s;
+  }
+  .modal-overlay.active { display: flex; opacity: 1; }
+  .modal {
+    background: #fff; border-radius: 30px; padding: 40px; max-width: 500px;
+    width: 100%; max-height: 85vh; overflow-y: auto; box-shadow: 0 30px 60px rgba(0,0,0,0.2);
+    transform: translateY(20px); transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  }
+  .modal-overlay.active .modal { transform: translateY(0); }
+  
+  .modal h2 { text-align: center; margin-bottom: 24px; color: #ff6b6b; font-size: 28px; font-weight: 900; }
+  .modal ol { padding-left: 24px; line-height: 2; font-size: 16px; color: #576574; font-weight: 600; }
+  .modal li::marker { color: #ff6b6b; font-weight: 900; }
+  .modal .close-btn { margin-top: 30px; width: 100%; padding: 16px; font-size: 18px; }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    .game-container { padding: 20px; border-radius: 20px; }
+    .canvas-area { flex-direction: column; }
+    .tools-panel {
+      flex-direction: row; width: 100%; flex-wrap: wrap; justify-content: space-around;
+      padding: 16px;
+    }
+    .tool-group { width: auto; }
+    .color-palette { grid-template-columns: repeat(6, 1fr); }
+    .size-selector { flex-direction: row; }
+    .tool-actions { flex-direction: row; width: auto; margin-top: 0; }
+    .tool-actions .btn { width: auto; padding: 10px 16px; }
+    h1 { font-size: 28px; }
+    .guess-area { flex-direction: column; }
+    .guess-area input, .guess-area .btn { width: 100%; }
+  }
+
+  /* Scroll bar */
+  ::-webkit-scrollbar { width: 8px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #cbd1d8; border-radius: 10px; }
+  ::-webkit-scrollbar-thumb:hover { background: #a4b0be; }
+</style>
+</head>
+<body>
+
+<div class="game-container" id="app">
+  <h1>🎨 你画我猜 <span>✏️</span></h1>
+
+  <!-- Setup Screen -->
+  <div class="screen setup-screen active" id="setupScreen">
+    <h2>👋 欢迎！请输入玩家名称</h2>
+    <div class="player-inputs">
+      <div class="player-input-group">
+        <label>🎭 画手</label>
+        <input type="text" id="player1Input" placeholder="玩家1" maxlength="8" value="画手">
+      </div>
+      <div class="player-input-group">
+        <label>🔍 猜词者</label>
+        <input type="text" id="player2Input" placeholder="玩家2" maxlength="8" value="猜手">
+      </div>
+    </div>
+    <button class="btn btn-primary" onclick="startGame()">🚀 开始游戏</button>
+    <br><br>
+    <button class="btn btn-secondary btn-sm" onclick="showInstructions()">📖 游戏规则</button>
+  </div>
+
+  <!-- Game Screen -->
+  <div class="screen" id="gameScreen">
+    <div class="game-header">
+      <div class="scores">
+        <div class="score-item" id="score1">🎭 <span class="name"></span>: <span class="pts">0</span></div>
+        <div class="score-item" id="score2">🔍 <span class="name"></span>: <span class="pts">0</span></div>
+      </div>
+      <div class="round-info">第 <span id="roundNum">1</span> 轮</div>
+      <div class="timer" id="timer">⏱ 60</div>
+    </div>
+
+    <div class="word-display">
+      <div class="word-hint" id="wordHint">点击下方按钮查看要画的词 👇</div>
+      <div class="word-text" id="wordText"></div>
+      <div class="word-category" id="wordCategory"></div>
+      <button class="btn btn-warning btn-sm reveal-btn" id="revealBtn" onclick="revealWord()">👀 查看词语</button>
+    </div>
+
+    <div class="canvas-area">
+      <div class="canvas-wrapper">
+        <canvas id="drawCanvas" width="600" height="400"></canvas>
+      </div>
+      <div class="tools-panel">
+        <div class="tool-group">
+          <label>🎨 颜色</label>
+          <div class="color-palette" id="colorPalette"></div>
+        </div>
+        <div class="tool-group">
+          <label>📏 大小</label>
+          <div class="size-selector" id="sizeSelector"></div>
+        </div>
+        <div class="tool-actions">
+          <button class="btn btn-secondary btn-sm" onclick="undo()">↩ 撤销</button>
+          <button class="btn btn-danger btn-sm" onclick="clearCanvas()">🗑 清空</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="guess-area">
+      <input type="text" id="guessInput" placeholder="输入你的猜测..." maxlength="20" autocomplete="off">
+      <button class="btn btn-success" id="guessBtn" onclick="submitGuess()">🔍 猜！</button>
+    </div>
+
+    <div class="messages" id="messages"></div>
+
+    <div class="game-actions">
+      <button class="btn btn-secondary btn-sm" onclick="showInstructions()">📖 规则</button>
+      <button class="btn btn-secondary btn-sm" onclick="endGame()">🏁 结束游戏</button>
+    </div>
+  </div>
+
+  <!-- Result Screen -->
+  <div class="screen" id="resultScreen">
+    <div class="trophy" id="trophy">🏆</div>
+    <h2 id="resultTitle">游戏结束！</h2>
+    <div class="final-scores" id="finalScores"></div>
+    <button class="btn btn-primary" onclick="backToSetup()">🔄 再来一局</button>
+  </div>
+</div>
+
+<!-- Instructions Modal -->
+<div class="modal-overlay" id="instructionsModal">
+  <div class="modal">
+    <h2>📖 游戏规则</h2>
+    <ol>
+      <li>🎭 <strong>画手</strong>点击"查看词语"看到要画的词</li>
+      <li>✏️ 在画布上画出这个词（不能写字或说话！）</li>
+      <li>🔍 <strong>猜词者</strong>根据画面输入猜测</li>
+      <li>⏱ 每轮限时 <strong>60秒</strong></li>
+      <li>✅ 猜对则双方各得 <strong>1分</strong></li>
+      <li>🔄 下一轮交换角色继续</li>
+      <li>🎯 最终得分高者获胜！</li>
+    </ol>
+    <p style="color:#888;font-size:13px;margin-top:12px;text-align:center;">
+      💡 画手看完词后记得点击"查看词语"将其隐藏哦！
+    </p>
+    <button class="btn btn-primary close-btn" onclick="hideInstructions()">👍 明白了！</button>
+  </div>
+</div>
+
+<script>
+// ===== Word Bank =====
+const WORDS = {
+  '动物': ['猫', '狗', '兔子', '大象', '老虎', '狮子', '长颈鹿', '企鹅', '海豚', '蝴蝶',
+           '乌龟', '蛇', '老鹰', '熊猫', '猴子', '青蛙', '鱼', '螃蟹', '蜗牛', '蜜蜂',
+           '猫头鹰', '孔雀', '骆驼', '北极熊', '鲨鱼'],
+  '食物': ['苹果', '西瓜', '香蕉', '蛋糕', '冰淇淋', '披萨', '汉堡', '面条', '饺子', '火锅',
+           '寿司', '巧克力', '葡萄', '草莓', '玉米', '鸡蛋', '牛奶', '面包', '螃蟹', '龙虾'],
+  '物品': ['手机', '电脑', '闹钟', '雨伞', '眼镜', '钥匙', '相机', '台灯', '剪刀', '杯子',
+           '背包', '手表', '地球仪', '蜡烛', '锁'],
+  '动作': ['跑步', '游泳', '跳舞', '唱歌', '睡觉', '吃饭', '看书', '踢球', '滑雪', '钓鱼',
+           '骑自行车', '跳绳', '打伞', '拍照', '刷牙'],
+  '职业': ['医生', '警察', '消防员', '厨师', '老师', '画家', '宇航员', '农民', '司机', '歌手'],
+  '自然': ['太阳', '月亮', '星星', '山', '河流', '大海', '彩虹', '云', '闪电', '雪花',
+           '火山', '沙漠', '瀑布', '森林', '花园'],
+  '建筑': ['城堡', '金字塔', '灯塔', '教堂', '摩天大楼', '风车', '桥', '房子', '学校', '医院'],
+  '其他': ['爱心', '笑脸', '圣诞树', '国旗', '礼物', '气球', '风筝', '火箭', '机器人', '钢琴']
+};
+
+// ===== Game State =====
+let state = {
+  player1: '画手', player2: '猜手',
+  score1: 0, score2: 0,
+  round: 1, totalRounds: 8,
+  currentDrawer: 1, // 1 or 2
+  currentWord: '', currentCategory: '',
+  usedWords: new Set(),
+  timer: 60, timerInterval: null,
+  isRevealed: false,
+  isDrawing: false, isGameOver: false,
+  guesses: [],
+};
+
+// ===== Canvas =====
+const canvas = document.getElementById('drawCanvas');
+const ctx = canvas.getContext('2d');
+let drawing = false;
+let currentColor = '#333333';
+let currentSize = 3;
+let undoStack = [];
+const MAX_UNDO = 30;
+
+function initCanvas() {
+  const rect = canvas.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = 600 * dpr;
+  canvas.height = 400 * dpr;
+  ctx.scale(dpr, dpr);
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  clearCanvas();
+}
+
+function getCanvasPos(e) {
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = 600 / rect.width;
+  const scaleY = 400 / rect.height;
+  let x, y;
+  if (e.touches) {
+    x = (e.touches[0].clientX - rect.left) * scaleX;
+    y = (e.touches[0].clientY - rect.top) * scaleY;
+    e.preventDefault();
+  } else {
+    x = (e.clientX - rect.left) * scaleX;
+    y = (e.clientY - rect.top) * scaleY;
+  }
+  return { x: Math.min(600, Math.max(0, x)), y: Math.min(400, Math.max(0, y)) };
+}
+
+function startDraw(e) {
+  if (state.isGameOver) return;
+  e.preventDefault();
+  drawing = true;
+  saveState();
+  const pos = getCanvasPos(e);
+  ctx.beginPath();
+  ctx.moveTo(pos.x, pos.y);
+}
+
+function draw(e) {
+  if (!drawing || state.isGameOver) return;
+  e.preventDefault();
+  const pos = getCanvasPos(e);
+  ctx.lineTo(pos.x, pos.y);
+  ctx.strokeStyle = currentColor;
+  ctx.lineWidth = currentSize;
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(pos.x, pos.y);
+}
+
+function endDraw(e) {
+  if (e) e.preventDefault();
+  drawing = false;
+  ctx.beginPath();
+}
+
+function saveState() {
+  if (undoStack.length >= MAX_UNDO) undoStack.shift();
+  undoStack.push(canvas.toDataURL());
+}
+
+function undo() {
+  if (undoStack.length === 0) return;
+  const img = new Image();
+  img.onload = () => {
+    const dpr = window.devicePixelRatio || 1;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  };
+  img.src = undoStack.pop();
+}
+
+function clearCanvas() {
+  undoStack = [];
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  const dpr = window.devicePixelRatio || 1;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+}
+
+// Canvas events
+canvas.addEventListener('mousedown', startDraw);
+canvas.addEventListener('mousemove', draw);
+canvas.addEventListener('mouseup', endDraw);
+canvas.addEventListener('mouseleave', endDraw);
+canvas.addEventListener('touchstart', startDraw, { passive: false });
+canvas.addEventListener('touchmove', draw, { passive: false });
+canvas.addEventListener('touchend', endDraw, { passive: false });
+
+// ===== UI Setup =====
+function setupTools() {
+  const colors = ['#333333','#e74c3c','#e67e22','#f1c40f','#27ae60','#1abc9c',
+                  '#3498db','#2980b9','#9b59b6','#e91e63','#795548','#ecf0f1'];
+  const palette = document.getElementById('colorPalette');
+  palette.innerHTML = '';
+  colors.forEach((c, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'color-btn' + (i === 0 ? ' active' : '');
+    btn.style.background = c;
+    if (c === '#ecf0f1') btn.style.border = '2px solid #ccc';
+    btn.onclick = () => {
+      document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentColor = c;
+    };
+    palette.appendChild(btn);
+  });
+
+  const sizes = [2, 4, 8, 16];
+  const sizeSel = document.getElementById('sizeSelector');
+  sizeSel.innerHTML = '';
+  sizes.forEach((s, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'size-btn' + (i === 0 ? ' active' : '');
+    const dot = document.createElement('div');
+    dot.className = 'dot s' + (i + 1);
+    btn.appendChild(dot);
+    btn.onclick = () => {
+      document.querySelectorAll('.size-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentSize = s;
+    };
+    sizeSel.appendChild(btn);
+  });
+}
+
+// ===== Game Logic =====
+function startGame() {
+  const p1 = document.getElementById('player1Input').value.trim() || '画手';
+  const p2 = document.getElementById('player2Input').value.trim() || '猜手';
+  state.player1 = p1;
+  state.player2 = p2;
+  state.score1 = 0;
+  state.score2 = 0;
+  state.round = 1;
+  state.usedWords = new Set();
+  state.currentDrawer = 1;
+  state.isGameOver = false;
+
+  document.getElementById('score1').querySelector('.name').textContent = p1;
+  document.getElementById('score2').querySelector('.name').textContent = p2;
+
+  showScreen('gameScreen');
+  newRound();
+}
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function getRandomWord() {
+  const categories = Object.keys(WORDS);
+  const available = [];
+  for (const cat of categories) {
+    for (const word of WORDS[cat]) {
+      if (!state.usedWords.has(word)) available.push({ word, category: cat });
+    }
+  }
+  if (available.length === 0) state.usedWords.clear(); // reset if exhausted
+  // retry
+  for (const cat of categories) {
+    for (const word of WORDS[cat]) {
+      if (!state.usedWords.has(word)) available.push({ word, category: cat });
+    }
+  }
+  const pick = available[Math.floor(Math.random() * available.length)];
+  state.usedWords.add(pick.word);
+  return pick;
+}
+
+function newRound() {
+  if (state.round > state.totalRounds) {
+    showResult();
+    return;
+  }
+
+  const pick = getRandomWord();
+  state.currentWord = pick.word;
+  state.currentCategory = pick.category;
+  state.isRevealed = false;
+  state.guesses = [];
+  state.timer = 60;
+
+  // Update UI
+  document.getElementById('roundNum').textContent = state.round;
+  const drawer = state.currentDrawer === 1 ? state.player1 : state.player2;
+  const guesser = state.currentDrawer === 1 ? state.player2 : state.player1;
+  document.getElementById('wordHint').textContent = `🎭 ${drawer} 来画，🔍 ${guesser} 来猜！`;
+  document.getElementById('wordText').textContent = state.currentWord;
+  document.getElementById('wordText').classList.remove('revealed');
+  document.getElementById('wordCategory').textContent = `📂 ${state.currentCategory}`;
+  document.getElementById('revealBtn').style.display = 'inline-block';
+  document.getElementById('revealBtn').textContent = '👀 查看词语';
+
+  clearCanvas();
+  updateScores();
+  updateTimer();
+
+  document.getElementById('guessInput').value = '';
+  document.getElementById('guessInput').disabled = false;
+  document.getElementById('guessBtn').disabled = false;
+  addMessage(`🎯 第 ${state.round} 轮开始！${drawer} 画画，${guesser} 来猜`, 'info');
+
+  // Start timer
+  clearInterval(state.timerInterval);
+  state.timerInterval = setInterval(() => {
+    state.timer--;
+    updateTimer();
+    if (state.timer <= 0) {
+      clearInterval(state.timerInterval);
+      addMessage(`⏰ 时间到！答案是：${state.currentWord}`, 'error');
+      setTimeout(nextRound, 2000);
+    }
+  }, 1000);
+
+  // Focus guess input
+  document.getElementById('guessInput').focus();
+}
+
+function revealWord() {
+  const wordText = document.getElementById('wordText');
+  const revealBtn = document.getElementById('revealBtn');
+  if (wordText.classList.contains('revealed')) {
+    wordText.classList.remove('revealed');
+    revealBtn.textContent = '👀 查看词语';
+    state.isRevealed = false;
+    document.getElementById('wordHint').textContent = '词语已隐藏 👀';
+  } else {
+    wordText.classList.add('revealed');
+    revealBtn.textContent = '🙈 隐藏词语';
+    state.isRevealed = true;
+    document.getElementById('wordHint').textContent = `🎨 画吧！（词在 ${state.currentCategory}）`;
+  }
+}
+
+function submitGuess() {
+  const input = document.getElementById('guessInput');
+  const guess = input.value.trim();
+  if (!guess) return;
+
+  // Check if already guessed
+  if (state.guesses.includes(guess)) {
+    addMessage(`⏳ "${guess}" 已经猜过了`, 'error');
+    input.value = '';
+    return;
+  }
+  state.guesses.push(guess);
+
+  if (guess === state.currentWord) {
+    // Correct!
+    clearInterval(state.timerInterval);
+    addMessage(`🎉🎉🎉 猜对了！答案是「${state.currentWord}」！`, 'correct');
+    // Award points
+    if (state.currentDrawer === 1) {
+      state.score1++; state.score2++;
+    } else {
+      state.score2++; state.score1++;
+    }
+    updateScores();
+    setTimeout(nextRound, 2000);
+  } else {
+    addMessage(`❌ "${guess}" 不对，再试试！`, 'error');
+  }
+  input.value = '';
+  input.focus();
+}
+
+function nextRound() {
+  if (state.isGameOver) return;
+  state.round++;
+  state.currentDrawer = state.currentDrawer === 1 ? 2 : 1;
+  newRound();
+}
+
+function updateScores() {
+  document.querySelectorAll('.score-item .pts')[0].textContent = state.score1;
+  document.querySelectorAll('.score-item .pts')[1].textContent = state.score2;
+}
+
+function updateTimer() {
+  const el = document.getElementById('timer');
+  el.textContent = `⏱ ${state.timer}`;
+  el.classList.toggle('warning', state.timer <= 10);
+}
+
+function addMessage(text, type) {
+  const container = document.getElementById('messages');
+  const div = document.createElement('div');
+  div.className = 'msg msg-' + type;
+  div.textContent = text;
+  container.appendChild(div);
+  container.scrollTop = container.scrollHeight;
+}
+
+function showResult() {
+  state.isGameOver = true;
+  clearInterval(state.timerInterval);
+  showScreen('resultScreen');
+
+  let winner, trophy;
+  if (state.score1 > state.score2) {
+    winner = state.player1; trophy = '🏆';
+  } else if (state.score2 > state.score1) {
+    winner = state.player2; trophy = '🏆';
+  } else {
+    winner = '平局！'; trophy = '🤝';
+  }
+
+  document.getElementById('trophy').textContent = trophy;
+  document.getElementById('resultTitle').textContent = winner === '平局！' ? '🤝 平局！' : `🎉 ${winner} 获胜！`;
+
+  const finalScores = document.getElementById('finalScores');
+  finalScores.innerHTML = `
+    <div class="final-score-item ${state.score1 >= state.score2 ? 'winner' : ''}">
+      <span>🎭 ${state.player1}</span>
+      <span class="pts">${state.score1} 分</span>
+    </div>
+    <div class="final-score-item ${state.score2 >= state.score1 ? 'winner' : ''}">
+      <span>🔍 ${state.player2}</span>
+      <span class="pts">${state.score2} 分</span>
+    </div>
+  `;
+}
+
+function endGame() {
+  if (confirm('确定要结束当前游戏吗？')) {
+    state.isGameOver = true;
+    clearInterval(state.timerInterval);
+    showResult();
+  }
+}
+
+function backToSetup() {
+  clearInterval(state.timerInterval);
+  showScreen('setupScreen');
+  document.getElementById('messages').innerHTML = '';
+}
+
+// Enter key to submit guess
+document.getElementById('guessInput').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') submitGuess();
+});
+
+// Instructions
+function showInstructions() {
+  document.getElementById('instructionsModal').classList.add('active');
+}
+function hideInstructions() {
+  document.getElementById('instructionsModal').classList.remove('active');
+}
+
+// Close modal on overlay click
+document.getElementById('instructionsModal').addEventListener('click', (e) => {
+  if (e.target === e.currentTarget) hideInstructions();
+});
+
+// ===== Init =====
+initCanvas();
+setupTools();
+</script>
+</body>
+</html>
